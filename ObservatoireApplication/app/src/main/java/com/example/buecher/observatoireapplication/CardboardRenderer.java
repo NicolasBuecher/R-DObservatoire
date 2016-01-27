@@ -20,6 +20,11 @@ import javax.microedition.khronos.egl.EGLConfig;
  */
 public class CardboardRenderer implements CardboardView.StereoRenderer
 {
+    private final int NB_BUFFER_OBJECTS = 2;
+
+    private final int[] bufferObjects = new int[NB_BUFFER_OBJECTS];
+
+    private Sphere sphere;
 
     private FloatBuffer cubeVertices;
     private FloatBuffer cubeColors;
@@ -44,6 +49,9 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         viewMatrix = new float[16];
         projectionMatrix = new float[16];
         MVPMatrix = new float[16];
+
+        // Initialization of a sphere of radius 5
+        sphere = new Sphere(15, 15, 1.0f);
     }
 
     @Override
@@ -59,6 +67,19 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         // Fill the buffers
         cubeVertices.put(WorldLayoutData.CUBE_COORDS).position(0);
         cubeColors.put(WorldLayoutData.CUBE_COLORS).position(0);
+
+        // Generate and fill buffer objects
+        GLES20.glGenBuffers(2, bufferObjects, 0);
+
+        // Vertex Buffer Object
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, bufferObjects[0]);
+        GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sphere.getVertexBuffer().capacity() * Util.BYTES_PER_FLOAT, sphere.getVertexBuffer(), GLES20.GL_STATIC_DRAW);
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+
+        // Index Buffer Object
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, bufferObjects[1]);
+        GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sphere.getIndexBuffer().capacity() * Util.BYTES_PER_SHORT, sphere.getIndexBuffer(), GLES20.GL_STATIC_DRAW);
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
 
         // Reference shaders
         int vertexShaderHandle = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER);
@@ -109,17 +130,6 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
     @Override
     public void onNewFrame(HeadTransform headTransform)
     {
-        // Calculate the angle in order to do a complete rotation every 10 seconds
-        long time = SystemClock.uptimeMillis() % 10000L;
-        float angle = (360.0f / 10000.0f) * ((int) time);
-
-        // Set up modelMatrix
-        Matrix.setIdentityM(modelMatrix, 0);
-        Matrix.translateM(modelMatrix, 0, 0.0f, 0.0f, -3.0f);
-        Matrix.rotateM(modelMatrix, 0, 45.0f, 0.0f, 1.0f, 0.0f);
-        Matrix.rotateM(modelMatrix, 0, 45.0f, 1.0f, 0.0f, 0.0f);
-        Matrix.rotateM(modelMatrix, 0, angle, 0.0f, 0.0f, 1.0f);
-
         // Set up cameraMatrix
         Matrix.setLookAtM(cameraMatrix, 0, 0.0f, 0.0f, 0.01f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
     }
@@ -130,18 +140,33 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         GLES20.glEnable(GLES20.GL_DEPTH_TEST);
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
 
+        // Calculate the angle in order to do a complete rotation every 10 seconds
+        long time = SystemClock.uptimeMillis() % 10000L;
+        float angle = (360.0f / 10000.0f) * ((int) time);
+
         // Set up viewMatrix
         Matrix.multiplyMM(viewMatrix, 0, eye.getEyeView(), 0, cameraMatrix, 0);
 
         // Set up projectionMatrix
         projectionMatrix = eye.getPerspective(0.1f, 100.0f);
 
-        // Calculate MVPMatrix
-        Matrix.multiplyMM(MVPMatrix, 0, viewMatrix, 0, modelMatrix, 0);
-        Matrix.multiplyMM(MVPMatrix, 0, projectionMatrix, 0, MVPMatrix, 0);
+        // Set up modelMatrix for the cube
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, 0.0f, 0.0f, -3.0f);
+        Matrix.rotateM(modelMatrix, 0, 45.0f, 0.0f, 1.0f, 0.0f);
+        Matrix.rotateM(modelMatrix, 0, 45.0f, 1.0f, 0.0f, 0.0f);
+        Matrix.rotateM(modelMatrix, 0, angle, 0.0f, 0.0f, 1.0f);
 
-        // Draw cube with all previous parameters
-        drawCube();
+        // Draw cube with all previous parameters, for tests only don't appear in the final application
+        //drawCube();
+
+        // Set up modelMatrix for the sphere
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, 0.0f, -3.0f, 0.0f);
+        Matrix.rotateM(modelMatrix, 0, angle, 0.5f, 0.5f, 1.0f);
+
+        // Draw sphere with all previous parameters
+        drawSphere();
     }
 
     @Override
@@ -156,9 +181,14 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
 
     }
 
+    // For tests only, don't appear in the final application
     private void drawCube()
     {
         GLES20.glUseProgram(programHandle);
+
+        // Calculate MVPMatrix
+        Matrix.multiplyMM(MVPMatrix, 0, viewMatrix, 0, modelMatrix, 0);
+        Matrix.multiplyMM(MVPMatrix, 0, projectionMatrix, 0, MVPMatrix, 0);
 
         // Pass in MVPMatrix to the program
         GLES20.glUniformMatrix4fv(MVPMatrixHandle, 1, false, MVPMatrix, 0);
@@ -173,5 +203,39 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
 
         // DRAW
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 36);
+    }
+
+    private void drawSphere()
+    {
+        GLES20.glUseProgram(programHandle);
+
+        // Calculate MVPMatrix
+        this.computeMVPMatrix();
+
+        // Pass in MVPMatrix to the program
+        GLES20.glUniformMatrix4fv(MVPMatrixHandle, 1, false, MVPMatrix, 0);
+
+        // Define VBO as current array buffer
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, bufferObjects[0]);
+
+        // Enable position attributes
+        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, 0);
+        GLES20.glEnableVertexAttribArray(positionHandle);
+
+        // Define IBO as current buffer
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, bufferObjects[1]);
+
+        // Draw sphere
+        GLES20.glDrawElements(GLES20.GL_TRIANGLE_STRIP, sphere.getNbVertices(), GLES20.GL_UNSIGNED_SHORT, 0);
+
+        // Unbind buffers
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
+
+    private void computeMVPMatrix()
+    {
+        Matrix.multiplyMM(MVPMatrix, 0, viewMatrix, 0, modelMatrix, 0);
+        Matrix.multiplyMM(MVPMatrix, 0, projectionMatrix, 0, MVPMatrix, 0);
     }
 }

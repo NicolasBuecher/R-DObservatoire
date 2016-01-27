@@ -7,6 +7,9 @@ import android.opengl.GLES20;
  */
 public class Util
 {
+    public static int BYTES_PER_FLOAT = 4;
+    public static int BYTES_PER_SHORT = 2;
+
     public static void loadGLShader(int shader, String source)
     {
         if (shader != 0)
