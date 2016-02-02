@@ -32,4 +32,35 @@ public class Util
             throw new RuntimeException("Error creating shader.");
         }
     }
+
+    public static int createProgram(final int vertexShaderHandle, final int fragmentShaderHandle)
+    {
+        // Create program and keep its reference
+        int programHandle = GLES20.glCreateProgram();
+
+        if (programHandle != 0)
+        {
+            // Link shaders in the program
+            GLES20.glAttachShader(programHandle, vertexShaderHandle);
+            GLES20.glAttachShader(programHandle, fragmentShaderHandle);
+
+            GLES20.glLinkProgram(programHandle);
+
+            final int[] linkStatus = new int[1];
+            GLES20.glGetProgramiv(programHandle, GLES20.GL_LINK_STATUS, linkStatus, 0);
+
+            if (linkStatus[0] == 0)
+            {
+                GLES20.glDeleteProgram(programHandle);
+                programHandle = 0;
+            }
+        }
+
+        if (programHandle == 0)
+        {
+            throw new RuntimeException("Error creating program.");
+        }
+
+        return programHandle;
+    }
 }

@@ -3,6 +3,7 @@ package com.example.buecher.observatoireapplication;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
 import android.os.SystemClock;
+import android.util.Log;
 
 import com.google.vrtoolkit.cardboard.CardboardView;
 import com.google.vrtoolkit.cardboard.Eye;
@@ -20,129 +21,216 @@ import javax.microedition.khronos.egl.EGLConfig;
  */
 public class CardboardRenderer implements CardboardView.StereoRenderer
 {
-    private final int NB_BUFFER_OBJECTS = 2;
+    /** Constants definition **/
 
+    // Number of Buffer Objects to generate
+    private final int NB_BUFFER_OBJECTS = 3;
+    // Array of references to Buffer Objects
     private final int[] bufferObjects = new int[NB_BUFFER_OBJECTS];
 
+    // A geometric sphere
     private Sphere sphere;
 
+    // Point light position (used to hold a light centered on the origin in model space. We need a 4th coordinate so we can get translations to work.)
+    private float[] lightPosInModelSpace;
+
+    // point light position in eye space (camera space)
+    private float[] lightPosInEyeSpace;
+
+    // Cube buffers (FOR TESTS, will be deleted)
     private FloatBuffer cubeVertices;
     private FloatBuffer cubeColors;
+    private FloatBuffer cubeNormals;
 
+    // Transformation Matrices
     private float[] modelMatrix;
     private float[] cameraMatrix;
     private float[] viewMatrix;
     private float[] projectionMatrix;
     private float[] MVPMatrix;
 
-    private int programHandle;
+    // Handlers for the basic program and its uniforms / attributes
+    private int basicProgramHandle;
+    private int basicProgramMVPMatrixHandle;
+    private int basicProgramPositionHandle;
 
-    private int MVPMatrixHandle;
-    private int positionHandle;
-    private int colorHandle;
+    // Handlers for the cube program and its uniforms / attributes (FOR TESTS, will be deleted)
+    private int cubeProgramHandle;
+    private int cubeProgramMVPMatrixHandle;
+    private int cubeProgramMVMatrixHandle;
+    private int cubeProgramLightPosHandle;
+    private int cubeProgramPositionHandle;
+    private int cubeProgramColorHandle;
+    private int cubeProgramNormalHandle;
+
+    // Handlers for the sphere program and its uniforms / attributes
+    private int sphereProgramHandle;
+    private int sphereProgramMVPMatrixHandle;
+    private int sphereProgramMVMatrixHandle;
+    private int sphereProgramLightPosHandle;
+    private int sphereProgramPositionHandle;
+    private int sphereProgramNormalHandle;
+
+    // Handlers for the point program and its uniforms / attributes
+    private int pointProgramHandle;
+    private int pointProgramMVPMatrixHandle;
+    private int pointProgramPositionHandle;
 
     public CardboardRenderer()
     {
-        // Matrix initialization at the beginning of the application
+        // Initialize matrices and vectors at the beginning of the application
         modelMatrix = new float[16];
         cameraMatrix = new float[16];
         viewMatrix = new float[16];
         projectionMatrix = new float[16];
         MVPMatrix = new float[16];
+        lightPosInEyeSpace = new float[4];
 
-        // Initialization of a sphere of radius 5
-        sphere = new Sphere(15, 15, 1.0f);
+        // Initialize the light position
+        lightPosInModelSpace = new float[] {0.0f, 0.0f, 0.0f, 1.0f};
     }
 
     @Override
     public void onSurfaceCreated(EGLConfig eglConfig)
     {
-        // Set up default Color
+        // Set up clear color to medium gray
         GLES20.glClearColor(0.5f, 0.5f, 0.5f, 0.5f);
 
-        // Buffer memory allocation
+
+        /** Set up buffers **/
+
+        // Initialize a sphere of radius 5 and its buffers (do it in onSurfaceCreated() method in order to be sure to be in OpenGL thread)
+        sphere = new Sphere(15, 15, 1.0f);
+
+        // Allocate memory for cube buffers (FOR TESTS, will be deleted)
         cubeVertices = ByteBuffer.allocateDirect(WorldLayoutData.CUBE_COORDS.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
         cubeColors = ByteBuffer.allocateDirect(WorldLayoutData.CUBE_COLORS.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        cubeNormals = ByteBuffer.allocateDirect(WorldLayoutData.CUBE_NORMALS.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 
-        // Fill the buffers
+        // Fill the cube buffers (FOR TESTS, will be deleted)
         cubeVertices.put(WorldLayoutData.CUBE_COORDS).position(0);
         cubeColors.put(WorldLayoutData.CUBE_COLORS).position(0);
+        cubeNormals.put(WorldLayoutData.CUBE_NORMALS).position(0);
 
-        // Generate and fill buffer objects
-        GLES20.glGenBuffers(2, bufferObjects, 0);
+        // Generate 2 buffer objects
+        GLES20.glGenBuffers(3, bufferObjects, 0);
 
         // Vertex Buffer Object
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, bufferObjects[0]);
         GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sphere.getVertexBuffer().capacity() * Util.BYTES_PER_FLOAT, sphere.getVertexBuffer(), GLES20.GL_STATIC_DRAW);
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
 
+        // Normal Buffer Object
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, bufferObjects[1]);
+        GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sphere.getNormalBuffer().capacity() * Util.BYTES_PER_FLOAT, sphere.getNormalBuffer(), GLES20.GL_STATIC_DRAW);
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+
         // Index Buffer Object
-        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, bufferObjects[1]);
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, bufferObjects[2]);
         GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sphere.getIndexBuffer().capacity() * Util.BYTES_PER_SHORT, sphere.getIndexBuffer(), GLES20.GL_STATIC_DRAW);
         GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
 
-        // Reference shaders
+        // Texture Coordinates Buffer Object ?
+
+
+        /** Shaders & Programs **/
+
+        // Create shaders and keep their references
         int vertexShaderHandle = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER);
         int fragmentShaderHandle = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER);
 
-        // Shader loading and compiling
-        Util.loadGLShader(vertexShaderHandle, Shaders.vertexShader);
-        Util.loadGLShader(fragmentShaderHandle, Shaders.fragmentShader);
 
-        // Reference program
-        programHandle = GLES20.glCreateProgram();
+        // Load and compile basic shaders
+        Util.loadGLShader(vertexShaderHandle, Shaders.basicVertexShader);
+        Util.loadGLShader(fragmentShaderHandle, Shaders.basicFragmentShader);
 
-        if (programHandle != 0)
-        {
-            // Link the shaders in the program
-            GLES20.glAttachShader(programHandle, vertexShaderHandle);
-            GLES20.glAttachShader(programHandle, fragmentShaderHandle);
+        // Create and link basic program
+        basicProgramHandle = Util.createProgram(vertexShaderHandle, fragmentShaderHandle);
 
-            GLES20.glLinkProgram(programHandle);
+        // Get the position of in variables of the basic program
+        basicProgramMVPMatrixHandle = GLES20.glGetUniformLocation(basicProgramHandle, "u_MVPMatrix");
+        basicProgramPositionHandle = GLES20.glGetAttribLocation(basicProgramHandle, "a_Position");
 
-            final int[] linkStatus = new int[1];
-            GLES20.glGetProgramiv(programHandle, GLES20.GL_LINK_STATUS, linkStatus, 0);
 
-            if (linkStatus[0] == 0)
-            {
-                GLES20.glDeleteProgram(programHandle);
-                programHandle = 0;
-            }
-        }
+        // Load and compile cube shaders (FOR TESTS, will be deleted)
+        Util.loadGLShader(vertexShaderHandle, Shaders.cubeVertexShader);
+        Util.loadGLShader(fragmentShaderHandle, Shaders.basicFragmentShader);
 
-        if (programHandle == 0)
-        {
-            throw new RuntimeException("Error creating program.");
-        }
+        // Create and link cube program (FOR TESTS, will be deleted)
+        cubeProgramHandle = Util.createProgram(vertexShaderHandle, fragmentShaderHandle);
 
-        // Get the position of in variables of the program
-        MVPMatrixHandle = GLES20.glGetUniformLocation(programHandle, "u_MVPMatrix");
-        positionHandle = GLES20.glGetAttribLocation(programHandle, "a_Position");
-        colorHandle = GLES20.glGetAttribLocation(programHandle, "a_Color");
+        // Get the position of in variables of the cube program (FOR TESTS, will be deleted)
+        cubeProgramMVPMatrixHandle = GLES20.glGetUniformLocation(cubeProgramHandle, "u_MVPMatrix");
+        cubeProgramMVMatrixHandle = GLES20.glGetUniformLocation(cubeProgramHandle, "u_MVMatrix");
+        cubeProgramLightPosHandle = GLES20.glGetUniformLocation(cubeProgramHandle, "u_LightPos");
+        cubeProgramPositionHandle = GLES20.glGetAttribLocation(cubeProgramHandle, "a_Position");
+        cubeProgramColorHandle = GLES20.glGetAttribLocation(cubeProgramHandle, "a_Color");
+        cubeProgramNormalHandle = GLES20.glGetAttribLocation(cubeProgramHandle, "a_Normal");
+
+
+        // Load and compile sphere shaders
+        Util.loadGLShader(vertexShaderHandle, Shaders.spherePerPixelVertexShader);
+        Util.loadGLShader(fragmentShaderHandle, Shaders.spherePerPixelFragmentShader);
+
+        // Create and link sphere program
+        sphereProgramHandle = Util.createProgram(vertexShaderHandle, fragmentShaderHandle);
+
+        // Get the position of in variables of the sphere program
+        sphereProgramMVPMatrixHandle = GLES20.glGetUniformLocation(sphereProgramHandle, "u_MVPMatrix");
+        sphereProgramMVMatrixHandle = GLES20.glGetUniformLocation(sphereProgramHandle, "u_MVMatrix");
+        sphereProgramLightPosHandle = GLES20.glGetUniformLocation(sphereProgramHandle, "u_LightPos");
+        sphereProgramPositionHandle = GLES20.glGetAttribLocation(sphereProgramHandle, "a_Position");
+        sphereProgramNormalHandle = GLES20.glGetAttribLocation(sphereProgramHandle, "a_Normal");
+
+
+        // Load and compile point light shaders
+        Util.loadGLShader(vertexShaderHandle, Shaders.pointVertexShader);
+        Util.loadGLShader(fragmentShaderHandle, Shaders.pointFragmentShader);
+
+        // Create and link point light program
+        pointProgramHandle = Util.createProgram(vertexShaderHandle, fragmentShaderHandle);
+
+        // Get the position of in variables of the point light program
+        pointProgramMVPMatrixHandle = GLES20.glGetUniformLocation(pointProgramHandle, "u_MVPMatrix");
+        pointProgramPositionHandle = GLES20.glGetAttribLocation(pointProgramHandle, "a_Position");
+
+        // NOTE : We could put "glGetUniformLocation" and "glGetAttribLocation" methods in "drawObject" methods and stop using global variables like in tutorials
+        // NOTE 2 : But if we do, they will be called every frame. Bad idea ?
     }
 
     @Override
     public void onSurfaceChanged(int width, int height)
     {
-
+        // Should not happen in Cardboard application ?
     }
 
     @Override
     public void onNewFrame(HeadTransform headTransform)
     {
-        // Set up cameraMatrix
+        // Set up cameraMatrix just behind the origin
         Matrix.setLookAtM(cameraMatrix, 0, 0.0f, 0.0f, 0.01f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
     }
 
     @Override
     public void onDrawEye(Eye eye)
     {
+        /** Set up OpenGL Flags **/
+
+        // Enable depth testing, draw closest objects first for optimization
         GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+
+        // Use culling to remove back faces (delete it if inside the sphere ? or create sphere using clockwise vertices ?)
+        GLES20.glEnable(GLES20.GL_CULL_FACE);
+
+
+        // Clear buffers
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
+
 
         // Calculate the angle in order to do a complete rotation every 10 seconds
         long time = SystemClock.uptimeMillis() % 10000L;
         float angle = (360.0f / 10000.0f) * ((int) time);
+
 
         // Set up viewMatrix
         Matrix.multiplyMM(viewMatrix, 0, eye.getEyeView(), 0, cameraMatrix, 0);
@@ -150,19 +238,34 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         // Set up projectionMatrix
         projectionMatrix = eye.getPerspective(0.1f, 100.0f);
 
-        // Set up modelMatrix for the cube
+
+        // Set up the modelMatrix for the light
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.rotateM(modelMatrix, 0, angle, 0.0f, 1.0f, 0.0f);
+        //Matrix.translateM(modelMatrix, 0, 1.5f, -4.0f, 0.0f);
+        Matrix.translateM(modelMatrix, 0, 0.9f, 0.0f, 0.0f);
+
+        // Calculate the light position in eye space
+        Matrix.multiplyMV(lightPosInEyeSpace, 0, modelMatrix, 0, lightPosInModelSpace, 0);
+        Matrix.multiplyMV(lightPosInEyeSpace, 0, viewMatrix, 0, lightPosInEyeSpace, 0);
+
+        // Draw the point light with all previous parameters
+        drawLight();
+
+
+        // Set up modelMatrix for the cube (FOR TESTS, will be deleted)
         Matrix.setIdentityM(modelMatrix, 0);
         Matrix.translateM(modelMatrix, 0, 0.0f, 0.0f, -3.0f);
         Matrix.rotateM(modelMatrix, 0, 45.0f, 0.0f, 1.0f, 0.0f);
         Matrix.rotateM(modelMatrix, 0, 45.0f, 1.0f, 0.0f, 0.0f);
         Matrix.rotateM(modelMatrix, 0, angle, 0.0f, 0.0f, 1.0f);
 
-        // Draw cube with all previous parameters, for tests only don't appear in the final application
-        //drawCube();
+        // Draw cube with all previous parameters (FOR TESTS, will be deleted)
+        drawCube();
 
         // Set up modelMatrix for the sphere
         Matrix.setIdentityM(modelMatrix, 0);
-        Matrix.translateM(modelMatrix, 0, 0.0f, -3.0f, 0.0f);
+        //Matrix.translateM(modelMatrix, 0, 0.0f, -4.0f, 0.0f);
         Matrix.rotateM(modelMatrix, 0, angle, 0.5f, 0.5f, 1.0f);
 
         // Draw sphere with all previous parameters
@@ -181,25 +284,40 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
 
     }
 
-    // For tests only, don't appear in the final application
+    // FOR TESTS, will be deleted
     private void drawCube()
     {
-        GLES20.glUseProgram(programHandle);
+        GLES20.glUseProgram(cubeProgramHandle);
+
+        // Calculate MVMatrix
+        Matrix.multiplyMM(MVPMatrix, 0, viewMatrix, 0, modelMatrix, 0);
+
+        // Pass in MVMatrix to the program
+        GLES20.glUniformMatrix4fv(cubeProgramMVMatrixHandle, 1, false, MVPMatrix, 0);
 
         // Calculate MVPMatrix
-        Matrix.multiplyMM(MVPMatrix, 0, viewMatrix, 0, modelMatrix, 0);
         Matrix.multiplyMM(MVPMatrix, 0, projectionMatrix, 0, MVPMatrix, 0);
 
         // Pass in MVPMatrix to the program
-        GLES20.glUniformMatrix4fv(MVPMatrixHandle, 1, false, MVPMatrix, 0);
+        GLES20.glUniformMatrix4fv(cubeProgramMVPMatrixHandle, 1, false, MVPMatrix, 0);
+
+        // Pass in light position to the program
+        GLES20.glUniform3f(cubeProgramLightPosHandle, lightPosInEyeSpace[0], lightPosInEyeSpace[1], lightPosInEyeSpace[2]);
+
+        // Since we are not using a buffer object, disable vertex arrays for this attribute.
+        GLES20.glDisableVertexAttribArray(cubeProgramLightPosHandle);
 
         // Pass in cubeVertices to the program
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, cubeVertices);
-        GLES20.glEnableVertexAttribArray(positionHandle);
+        GLES20.glVertexAttribPointer(cubeProgramPositionHandle, 3, GLES20.GL_FLOAT, false, 0, cubeVertices);
+        GLES20.glEnableVertexAttribArray(cubeProgramPositionHandle);
 
         // Pass in cubeColors to the program
-        GLES20.glVertexAttribPointer(colorHandle, 4, GLES20.GL_FLOAT, false, 0, cubeColors);
-        GLES20.glEnableVertexAttribArray(colorHandle);
+        GLES20.glVertexAttribPointer(cubeProgramColorHandle, 4, GLES20.GL_FLOAT, false, 0, cubeColors);
+        GLES20.glEnableVertexAttribArray(cubeProgramColorHandle);
+
+        // Pass in cubeNormals to the program
+        GLES20.glVertexAttribPointer(cubeProgramNormalHandle, 3, GLES20.GL_FLOAT, false, 0, cubeNormals);
+        GLES20.glEnableVertexAttribArray(cubeProgramNormalHandle);
 
         // DRAW
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 36);
@@ -207,23 +325,42 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
 
     private void drawSphere()
     {
-        GLES20.glUseProgram(programHandle);
+        GLES20.glUseProgram(sphereProgramHandle);
+
+        // Calculate MVMatrix
+        Matrix.multiplyMM(MVPMatrix, 0, viewMatrix, 0, modelMatrix, 0);
+
+        // Pass in MVMatrix to the program
+        GLES20.glUniformMatrix4fv(sphereProgramMVMatrixHandle, 1, false, MVPMatrix, 0);
 
         // Calculate MVPMatrix
-        this.computeMVPMatrix();
+        Matrix.multiplyMM(MVPMatrix, 0, projectionMatrix, 0, MVPMatrix, 0);
 
         // Pass in MVPMatrix to the program
-        GLES20.glUniformMatrix4fv(MVPMatrixHandle, 1, false, MVPMatrix, 0);
+        GLES20.glUniformMatrix4fv(sphereProgramMVPMatrixHandle, 1, false, MVPMatrix, 0);
+
+        // Pass in light position to the program
+        GLES20.glUniform3f(sphereProgramLightPosHandle, lightPosInEyeSpace[0], lightPosInEyeSpace[1], lightPosInEyeSpace[2]);
+
+        // Since we are not using a buffer object, disable vertex arrays for this attribute.
+        GLES20.glDisableVertexAttribArray(sphereProgramLightPosHandle);
 
         // Define VBO as current array buffer
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, bufferObjects[0]);
 
         // Enable position attributes
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, 0);
-        GLES20.glEnableVertexAttribArray(positionHandle);
+        GLES20.glVertexAttribPointer(sphereProgramPositionHandle, 3, GLES20.GL_FLOAT, false, 0, 0);
+        GLES20.glEnableVertexAttribArray(sphereProgramPositionHandle);
+
+        // Define NBO as current array buffer
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, bufferObjects[1]);
+
+        // Enable normal attributes
+        GLES20.glVertexAttribPointer(sphereProgramNormalHandle, 3, GLES20.GL_FLOAT, false, 0, 0);
+        GLES20.glEnableVertexAttribArray(sphereProgramNormalHandle);
 
         // Define IBO as current buffer
-        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, bufferObjects[1]);
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, bufferObjects[2]);
 
         // Draw sphere
         GLES20.glDrawElements(GLES20.GL_TRIANGLE_STRIP, sphere.getNbVertices(), GLES20.GL_UNSIGNED_SHORT, 0);
@@ -231,6 +368,26 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         // Unbind buffers
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
         GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
+
+    private void drawLight()
+    {
+        GLES20.glUseProgram(pointProgramHandle);
+
+        // Calculate MVPMatrix
+        this.computeMVPMatrix();
+
+        // Pass in MVPMatrix to the program
+        GLES20.glUniformMatrix4fv(pointProgramMVPMatrixHandle, 1, false, MVPMatrix, 0);
+
+        // Pass in the position.
+        GLES20.glVertexAttrib3f(pointProgramPositionHandle, lightPosInModelSpace[0], lightPosInModelSpace[1], lightPosInModelSpace[2]);
+
+        // Since we are not using a buffer object, disable vertex arrays for this attribute.
+        GLES20.glDisableVertexAttribArray(pointProgramPositionHandle);
+
+        // Draw the point
+        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, 1);
     }
 
     private void computeMVPMatrix()

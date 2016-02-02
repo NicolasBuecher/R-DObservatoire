@@ -15,6 +15,7 @@ public class Sphere
     private final int BYTES_PER_VERTEX = 3 * Util.BYTES_PER_FLOAT;
     private final int BYTES_PER_NORMAL = 3 * Util.BYTES_PER_FLOAT;
     private final int BYTES_PER_TEXTURE = 2 * Util.BYTES_PER_FLOAT;
+    private final int BYTES_PER_INDEX = Util.BYTES_PER_SHORT;
 
     private float m_radius;
     private int m_stacks;
@@ -48,7 +49,7 @@ public class Sphere
                 .order(ByteOrder.nativeOrder()).asFloatBuffer();
         this.m_textureBuffer = ByteBuffer.allocateDirect(vertexCount * BYTES_PER_TEXTURE)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer();
-        this.m_indexBuffer = ByteBuffer.allocateDirect(this.m_nbVertices * Util.BYTES_PER_SHORT)
+        this.m_indexBuffer = ByteBuffer.allocateDirect(this.m_nbVertices * BYTES_PER_INDEX)
                 .order(ByteOrder.nativeOrder()).asShortBuffer();
 
         // Fill Buffers
@@ -86,9 +87,9 @@ public class Sphere
                 float u = 1.0f - ((float) slice / (float) this.m_slices);
                 float v = (float) stack / (float) this.m_stacks;
 
-                this.m_normalBuffer.put(nx);
-                this.m_normalBuffer.put(ny);
-                this.m_normalBuffer.put(nz);
+                this.m_normalBuffer.put(-1.0f*nx);
+                this.m_normalBuffer.put(-1.0f*ny);
+                this.m_normalBuffer.put(-1.0f*nz);
 
                 this.m_vertexBuffer.put(x);
                 this.m_vertexBuffer.put(y);
@@ -136,6 +137,11 @@ public class Sphere
     public FloatBuffer getVertexBuffer()
     {
         return this.m_vertexBuffer;
+    }
+
+    public FloatBuffer getNormalBuffer()
+    {
+        return this.m_normalBuffer;
     }
 
     // Return indexBuffer
