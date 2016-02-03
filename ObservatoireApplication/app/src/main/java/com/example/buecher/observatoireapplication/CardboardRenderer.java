@@ -279,7 +279,7 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         Matrix.multiplyMV(lightPosInEyeSpace, 0, viewMatrix, 0, lightPosInEyeSpace, 0);
 
         // Draw the point light with all previous parameters
-        drawLight();
+        // drawLight(); // Not useful anymore to see the point light in this version of the application
 
 
         // Set up modelMatrix for the cube (FOR TESTS, will be deleted)
@@ -290,7 +290,7 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         Matrix.rotateM(modelMatrix, 0, angle, 0.0f, 0.0f, 1.0f);
 
         // Draw cube with all previous parameters (FOR TESTS, will be deleted)
-        drawCube();
+        // drawCube();
 
         // Set up modelMatrix for the sphere
         Matrix.setIdentityM(modelMatrix, 0);
