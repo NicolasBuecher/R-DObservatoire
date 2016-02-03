@@ -21,9 +21,10 @@ public class MainActivity extends CardboardActivity
 
         CardboardView cardboardView = (CardboardView) findViewById(R.id.cardboard_view);
         cardboardView.setRestoreGLStateEnabled(false);
-        cardboardView.setRenderer(new CardboardRenderer());
+        cardboardView.setRenderer(new CardboardRenderer(this));
         setCardboardView(cardboardView);
 
         overlayView = (CardboardOverlayView) findViewById(R.id.overlay);
+        overlayView.show3DToast("Look around !");
     }
 }

@@ -97,6 +97,9 @@ public class Sphere
 
                 this.m_textureBuffer.put(u);
                 this.m_textureBuffer.put(v);
+
+                Log.v("mayday", "x: " + x + " ; y: " + y + " ; z: " + z);
+                Log.v("mayday", "u: " + u + " ; v: " + v);
             }
         }
 
@@ -139,9 +142,16 @@ public class Sphere
         return this.m_vertexBuffer;
     }
 
+    // Return normalBuffer
     public FloatBuffer getNormalBuffer()
     {
         return this.m_normalBuffer;
+    }
+
+    // Return texture coordinates buffer
+    public FloatBuffer getTextureBuffer()
+    {
+        return this.m_textureBuffer;
     }
 
     // Return indexBuffer
