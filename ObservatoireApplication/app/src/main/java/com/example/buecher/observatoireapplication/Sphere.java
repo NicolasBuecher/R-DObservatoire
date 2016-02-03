@@ -97,9 +97,6 @@ public class Sphere
 
                 this.m_textureBuffer.put(u);
                 this.m_textureBuffer.put(v);
-
-                Log.v("mayday", "x: " + x + " ; y: " + y + " ; z: " + z);
-                Log.v("mayday", "u: " + u + " ; v: " + v);
             }
         }
 

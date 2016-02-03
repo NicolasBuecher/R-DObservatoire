@@ -4,6 +4,7 @@ import android.content.Context;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
 import android.os.SystemClock;
+import android.util.Log;
 
 import com.google.vrtoolkit.cardboard.CardboardView;
 import com.google.vrtoolkit.cardboard.Eye;
@@ -28,9 +29,21 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
     // Array of references to Buffer Objects
     private final int[] bufferObjects = new int[NB_BUFFER_OBJECTS];
 
+    // Number of texture handlers to generate
+    private final int NB_TEXTURES = 3;
+    // Handlers for the textures
+    private final int[] texturesHandle = new int[NB_TEXTURES];
+
 
     // MainActivity context to load textures from raws
     private final Context context;
+
+
+    // Current texture id
+    private int currentTexture;
+
+    // Store the number of times the user triggered the button of the cardboard
+    private int trigger;
 
 
     // A geometric sphere
@@ -86,9 +99,6 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
     private int pointProgramMVPMatrixHandle;
     private int pointProgramPositionHandle;
 
-    // Handler for the texture
-    private int textureHandle;
-
     public CardboardRenderer(final Context activityContext)
     {
         // Get the MainActivity context
@@ -104,6 +114,9 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
 
         // Initialize the light position
         lightPosInModelSpace = new float[] {0.0f, 0.0f, 0.0f, 1.0f};
+
+        // Initialize the trigger count
+        trigger = 0;
     }
 
     @Override
@@ -223,7 +236,13 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         // NOTE 2 : But if we do, they will be called every frame. Bad idea ?
 
         // Load the texture
-        textureHandle = Util.loadTexture(context, R.drawable.sky_test_pic);
+        texturesHandle[0] = Util.loadTexture(context, R.drawable.sky_test_pic);
+        texturesHandle[1] = Util.loadTexture(context, R.drawable.all_sky);
+        texturesHandle[2] = Util.loadTexture(context, R.drawable.john_sky);
+
+        // Set current texture
+        currentTexture = texturesHandle[trigger];
+
     }
 
     @Override
@@ -321,7 +340,7 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 
         // Bind the texture to this unit.
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, currentTexture);
 
         // Tell the texture uniform sampler to use this texture in the shader by binding to texture unit 0.
         GLES20.glUniform1i(cubeProgramTextureHandle, 0);
@@ -373,7 +392,7 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 
         // Bind the texture to this unit.
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, currentTexture);
 
         // Tell the texture uniform sampler to use this texture in the shader by binding to texture unit 0.
         GLES20.glUniform1i(sphereProgramTextureHandle, 0);
@@ -452,5 +471,22 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
     {
         Matrix.multiplyMM(MVPMatrix, 0, viewMatrix, 0, modelMatrix, 0);
         Matrix.multiplyMM(MVPMatrix, 0, projectionMatrix, 0, MVPMatrix, 0);
+    }
+
+    public int switchTexture()
+    {
+        trigger++;
+
+        if (trigger >= NB_TEXTURES)
+        {
+            currentTexture = texturesHandle[0];
+            trigger = 0;
+        }
+        else
+        {
+            currentTexture = texturesHandle[trigger];
+        }
+
+        return trigger;
     }
 }
