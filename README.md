@@ -18,3 +18,7 @@ Pour lancer le projet :
 Commandes :
 
 Actionner l'input de la Cardboard (magnet sur la V1, bouton capacitatif sur la V2) permet d'alterner entre les différentes textures disponibles.
+
+Retirer le cube et la lumière ponctuelle de l'application afin de ne garder que la sphère :
+
+Mettre en commentaire la ligne "drawCube()" et la ligne "drawLight" dans la méthode onDrawEye() du fichier CardboardRenderer.java
