@@ -68,11 +68,6 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
     private float[] projectionMatrix;
     private float[] MVPMatrix;
 
-    // Handlers for the basic program and its uniforms / attributes
-    private int basicProgramHandle;
-    private int basicProgramMVPMatrixHandle;
-    private int basicProgramPositionHandle;
-
     // Handlers for the cube program and its uniforms / attributes (FOR TESTS, will be deleted)
     private int cubeProgramHandle;
     private int cubeProgramMVPMatrixHandle;
@@ -129,7 +124,7 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         /** Set up buffers **/
 
         // Initialize a sphere of radius 5 and its buffers (do it in onSurfaceCreated() method in order to be sure to be in OpenGL thread)
-        sphere = new Sphere(15, 15, 1.0f);
+        sphere = new Sphere(60, 60, 10.0f);
 
         // Allocate memory for cube buffers (FOR TESTS, will be deleted)
         cubeVertices = ByteBuffer.allocateDirect(WorldLayoutData.CUBE_COORDS.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
@@ -172,18 +167,6 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         // Create shaders and keep their references
         int vertexShaderHandle = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER);
         int fragmentShaderHandle = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER);
-
-
-        // Load and compile basic shaders
-        Util.loadGLShader(vertexShaderHandle, Shaders.basicVertexShader);
-        Util.loadGLShader(fragmentShaderHandle, Shaders.basicFragmentShader);
-
-        // Create and link basic program
-        basicProgramHandle = Util.createProgram(vertexShaderHandle, fragmentShaderHandle);
-
-        // Get the position of in variables of the basic program
-        basicProgramMVPMatrixHandle = GLES20.glGetUniformLocation(basicProgramHandle, "u_MVPMatrix");
-        basicProgramPositionHandle = GLES20.glGetAttribLocation(basicProgramHandle, "a_Position");
 
 
         // Load and compile cube shaders (FOR TESTS, will be deleted)
@@ -289,7 +272,7 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
         Matrix.setIdentityM(modelMatrix, 0);
         Matrix.rotateM(modelMatrix, 0, angle, 0.0f, 1.0f, 0.0f);
         //Matrix.translateM(modelMatrix, 0, 1.5f, -2.0f, 0.0f);
-        Matrix.translateM(modelMatrix, 0, 0.9f, 0.0f, 0.0f);
+        Matrix.translateM(modelMatrix, 0, 9.8f, 0.0f, 0.0f);
 
         // Calculate the light position in eye space
         Matrix.multiplyMV(lightPosInEyeSpace, 0, modelMatrix, 0, lightPosInModelSpace, 0);
@@ -311,8 +294,8 @@ public class CardboardRenderer implements CardboardView.StereoRenderer
 
         // Set up modelMatrix for the sphere
         Matrix.setIdentityM(modelMatrix, 0);
-        //Matrix.translateM(modelMatrix, 0, 0.0f, -2.0f, 0.0f);
-        //Matrix.rotateM(modelMatrix, 0, angle, 0.5f, 0.5f, 1.0f);
+        //Matrix.translateM(modelMatrix, 0, 0.0f, -11.0f, 0.0f); // FOR TESTS ONLY
+        //Matrix.rotateM(modelMatrix, 0, angle, 0.5f, 0.5f, 1.0f); // FOR TETS ONLY
 
         // Draw sphere with all previous parameters
         drawSphere();

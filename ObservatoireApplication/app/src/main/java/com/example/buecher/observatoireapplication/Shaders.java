@@ -6,7 +6,7 @@ package com.example.buecher.observatoireapplication;
  */
 public final class Shaders
 {
-    // Per-pixel diffuse and ambient lighting, hard code red color, add textures
+    // Per-pixel diffuse and ambient lighting, hard code white color, add textures
     public static final String sphereTextureFragmentShader =
           "precision mediump float;         \n"     // Set the default precision to medium. We don't need as high of a
         + "                                 \n"     // precision in the fragment shader.
@@ -28,10 +28,10 @@ public final class Shaders
         + "     diffuse = diffuse * (1.0 / (1.0 + (0.1 * distance))) + 0.8;         \n" // Attenuate the light based on distance.
         + "                                                                         \n" // Ambient light of 0.8
         + "                                                                         \n"
-        + "     gl_FragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f) * diffuse * texture2D(u_Texture, v_TexCoordinate);\n" // Multiply the color by the diffuse illumination level and texture value to get final output color.
+        + "     gl_FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f) * diffuse * texture2D(u_Texture, v_TexCoordinate);\n" // Multiply the color by the diffuse illumination level and texture value to get final output color.
         + "}                                                                        ";
 
-    // Per-pixel diffuse & ambient lighting, hard code red color, add textures
+    // Per-pixel diffuse & ambient lighting, hard code white color, add textures
     public static final String sphereTextureVertexShader =
           "uniform mat4 u_MVPMatrix;        \n"     // A constant representing the combined model/view/projection matrix.
         + "uniform mat4 u_MVMatrix;         \n"     // A constant representing the combined model/view matrix.
@@ -53,7 +53,7 @@ public final class Shaders
         + "     v_TexCoordinate = a_TexCoordinate;                  \n" // Pass through the texture coordinate
         + "                                                         \n"
         + "     gl_Position = u_MVPMatrix * a_Position;             \n" // Multiply the vertex by the matrix to get the final point in normalized screen coordinates.
-        + "}                                                                        ";
+        + "}                                                        ";
 
     // Per-pixel diffuse and ambient lighting, using textures (FOR TESTS, will be deleted)
     public static final String cubeTextureFragmentShader =

@@ -47,14 +47,11 @@ public class MainActivity extends CardboardActivity
                 overlayView.show3DToast("All sky in one texture. (HealPIX)");
                 break;
             case 2:
-                overlayView.show3DToast("All sky in one texture. (Other)");
+                overlayView.show3DToast("Milky Way in one texture. (Other)");
                 break;
             default:
-                // Hold an error
+                overlayView.show3DToast("Error");
                 break;
         }
-
-
-        overlayView.show3DToast("");
     }
 }
